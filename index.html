@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0f0f19">
+<meta name="description" content="Podcast Companion — Lo strumento gratuito di Domenico Olivieri per chi vuole iniziare o migliorare il proprio podcast.">
+<title>Podcast Companion</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="icon" type="image/png" href="./icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<script>
+// In <head>: eseguito subito, prima che l'HTML venga renderizzato.
+// Tutte le funzioni chiamate da onclick inline DEVONO essere qui.
+
+function toggleTheme(){
+  var html=document.documentElement;
+  var next=html.getAttribute('data-theme')=='dark'?'light':'dark';
+  html.setAttribute('data-theme',next);
+  var btn=document.getElementById('theme-btn');
+  if(btn)btn.textContent=next==='dark'?'🌙':'☀️';
+  localStorage.setItem('pc_theme',next);
+}
+
+// Applica tema prima del render (no flash)
+(function(){
+  var s=localStorage.getItem('pc_theme')||'dark';
+  document.documentElement.setAttribute('data-theme',s);
+})();
+
+// Queste verranno ridefinite dal blocco JS in fondo,
+// ma devono esistere subito per i click anticipati.
+function switchTab(tab){
+  document.querySelectorAll('.section').forEach(function(s){s.classList.remove('active');});
+  document.querySelectorAll('.nav-tab').forEach(function(t){t.classList.remove('active');});
+  var sec=document.getElementById('section-'+tab);
+  var tb=document.getElementById('tab-'+tab);
+  if(sec)sec.classList.add('active');
+  if(tb)tb.classList.add('active');
+  if(tab==='saved'&&typeof renderSavedList==='function')renderSavedList();
+  if(tab==='wizard'&&typeof resetWizardIntro==='function')resetWizardIntro();
+}
+function showToast(msg){
+  var t=document.getElementById('toast');
+  if(!t)return;
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(function(){t.classList.remove('show');},2600);
+}
+function toggleCheckStyle(labelId){
+  var lbl=document.getElementById(labelId);
+  if(lbl)lbl.classList.toggle('checked',lbl.querySelector('input').checked);
+}
+// Stubs — ridefiniti dal JS principale
+var _stubs=['saveSetup','clearSetup','startWizard','wizardBack','wizardNext',
+  'wizardRestart','openSaveModal','closeSaveModal','confirmSaveCard',
+  'openRenameModal','closeRenameModal','confirmRename','copyCardText',
+  'copyResultText','printResultCard','printSavedCard','openViewModal',
+  'closeViewModal','deleteCardFromList','exportBackup','importBackup','resetEverything'];
+_stubs.forEach(function(n){window[n]=window[n]||function(){};});
+</script>
+<style>
+:root{
+  --amber:#f59e0b;--amber-light:#fbbf24;--amber-dark:#d97706;
+  --amber-glow:rgba(245,158,11,0.15);
+  --red:#ef4444;--green:#22c55e;--blue:#60a5fa;
+  --font-display:'Syne',sans-serif;--font-mono:'Space Mono',monospace;
+  --font-body:'Instrument Sans',sans-serif;
+  --radius-sm:6px;--radius-md:12px;--radius-lg:20px;--radius-xl:28px;
+  --transition:0.2s cubic-bezier(0.4,0,0.2,1);
+}
+[data-theme="dark"]{
+  --bg-base:#0d0d17;--bg-surface:#13131f;--bg-card:#191926;--bg-hover:#1e1e2e;
+  --border:#2a2a3d;--border-light:#3a3a55;
+  --text-primary:#e8e4d8;--text-secondary:#9e9aad;--text-muted:#5e5a70;
+  --text-on-amber:#0d0d17;
+  --shadow-card:0 4px 24px rgba(0,0,0,0.4);--shadow-amber:0 0 24px rgba(245,158,11,0.2);
+}
+[data-theme="light"]{
+  --bg-base:#f5f0e8;--bg-surface:#ede8dc;--bg-card:#e8e2d4;--bg-hover:#e0d9c8;
+  --border:#cec8b8;--border-light:#b8b0a0;
+  --text-primary:#1a1820;--text-secondary:#4a4560;--text-muted:#8a8599;
+  --text-on-amber:#1a1820;
+  --shadow-card:0 4px 24px rgba(0,0,0,0.08);--shadow-amber:0 0 24px rgba(245,158,11,0.15);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:16px;scroll-behavior:smooth;}
+body{font-family:var(--font-body);background:var(--bg-base);color:var(--text-primary);min-height:100dvh;overflow-x:hidden;line-height:1.6;transition:background 0.3s,color 0.3s;}
+::-webkit-scrollbar{width:6px;}
+::-webkit-scrollbar-track{background:var(--bg-base);}
+::-webkit-scrollbar-thumb{background:var(--border-light);border-radius:3px;}
+::-webkit-scrollbar-thumb:hover{background:var(--amber-dark);}
+.app-wrapper{max-width:720px;margin:0 auto;padding:0 16px 100px;}
+.app-header{padding:28px 0 20px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--border);margin-bottom:8px;}
+.header-logo{width:44px;height:44px;background:var(--amber);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;box-shadow:var(--shadow-amber);}
+.header-text{flex:1;}
+.header-text h1{font-family:var(--font-display);font-size:1.3rem;font-weight:800;letter-spacing:-0.02em;color:var(--text-primary);line-height:1.1;}
+.header-text p{font-size:0.68rem;color:var(--text-muted);font-family:var(--font-mono);letter-spacing:0.04em;text-transform:uppercase;margin-top:3px;line-height:1.4;}
+.theme-toggle{background:transparent;border:1px solid var(--border);color:var(--text-muted);width:36px;height:36px;border-radius:var(--radius-sm);cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:var(--transition);}
+.theme-toggle:hover{border-color:var(--amber);color:var(--amber);background:var(--amber-glow);}
+.nav-tabs{display:flex;gap:4px;padding:12px 0 8px;position:sticky;top:0;background:var(--bg-base);z-index:100;border-bottom:1px solid var(--border);margin-bottom:24px;}
+.nav-tab{flex:1;padding:9px 4px;background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-muted);font-family:var(--font-display);font-weight:600;font-size:0.66rem;letter-spacing:0.03em;text-transform:uppercase;cursor:pointer;transition:var(--transition);text-align:center;line-height:1.2;}
+.nav-tab:hover{border-color:var(--border-light);color:var(--text-secondary);background:var(--bg-hover);}
+.nav-tab.active{background:var(--amber);border-color:var(--amber);color:var(--text-on-amber);}
+.section{display:none;animation:fadeIn 0.25s ease;}
+.section.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;margin-bottom:16px;box-shadow:var(--shadow-card);}
+.card-title{font-family:var(--font-display);font-size:0.8rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--amber);margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.card-title::before{content:'';display:block;width:3px;height:14px;background:var(--amber);border-radius:2px;}
+.form-group{margin-bottom:16px;}
+.form-label{display:block;font-size:0.82rem;font-weight:600;color:var(--text-secondary);margin-bottom:6px;}
+.form-label .optional{font-weight:400;color:var(--text-muted);font-size:0.75rem;}
+.form-input,.form-select,.form-textarea{width:100%;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-family:var(--font-body);font-size:0.9rem;padding:10px 12px;transition:var(--transition);appearance:none;outline:none;}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--amber);box-shadow:0 0 0 3px var(--amber-glow);}
+.form-select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239e9aad' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px;cursor:pointer;}
+.form-select option{background:var(--bg-card);}
+.form-textarea{resize:vertical;min-height:70px;line-height:1.5;}
+.check-group{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.check-item{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;transition:var(--transition);font-size:0.83rem;color:var(--text-secondary);}
+.check-item:hover{border-color:var(--border-light);}
+.check-item input[type="checkbox"]{accent-color:var(--amber);width:14px;height:14px;}
+.check-item.checked{border-color:var(--amber);background:var(--amber-glow);color:var(--text-primary);}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;border-radius:var(--radius-sm);font-family:var(--font-display);font-weight:700;font-size:0.82rem;letter-spacing:0.04em;text-transform:uppercase;cursor:pointer;border:none;transition:var(--transition);outline:none;}
+.btn-primary{background:var(--amber);color:var(--text-on-amber);box-shadow:0 2px 12px rgba(245,158,11,0.3);}
+.btn-primary:hover{background:var(--amber-light);transform:translateY(-1px);}
+.btn-primary:active{transform:translateY(0);}
+.btn-secondary{background:transparent;color:var(--text-secondary);border:1px solid var(--border);}
+.btn-secondary:hover{border-color:var(--border-light);color:var(--text-primary);background:var(--bg-hover);}
+.btn-danger{background:transparent;color:var(--red);border:1px solid rgba(239,68,68,0.3);font-size:0.75rem;padding:7px 12px;}
+.btn-danger:hover{background:rgba(239,68,68,0.1);border-color:var(--red);}
+.btn-ghost{background:transparent;color:var(--amber);border:1px solid var(--amber-dark);padding:8px 14px;font-size:0.76rem;}
+.btn-ghost:hover{background:var(--amber-glow);}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px;}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:0.7rem;font-weight:700;font-family:var(--font-mono);white-space:nowrap;}
+.badge-amber{background:var(--amber-glow);color:var(--amber-light);border:1px solid var(--amber-dark);}
+.badge-green{background:rgba(34,197,94,0.1);color:#4ade80;border:1px solid rgba(34,197,94,0.3);}
+.badge-blue{background:rgba(96,165,250,0.1);color:#60a5fa;border:1px solid rgba(96,165,250,0.3);}
+.badge-red{background:rgba(239,68,68,0.1);color:#f87171;border:1px solid rgba(239,68,68,0.3);}
+.badge-muted{background:var(--bg-surface);color:var(--text-muted);border:1px solid var(--border);}
+.notice{padding:12px 14px;border-radius:var(--radius-sm);font-size:0.83rem;line-height:1.5;margin-bottom:16px;display:flex;gap:10px;align-items:flex-start;}
+.notice-amber{background:var(--amber-glow);border:1px solid var(--amber-dark);color:var(--text-primary);}
+.notice-red{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.4);color:var(--text-primary);}
+.notice-icon{font-size:1rem;flex-shrink:0;margin-top:1px;}
+.section-title{font-family:var(--font-display);font-size:1.5rem;font-weight:800;letter-spacing:-0.03em;color:var(--text-primary);margin-bottom:6px;line-height:1.1;}
+.section-sub{font-size:0.85rem;color:var(--text-muted);margin-bottom:24px;}
+.divider{border:none;border-top:1px solid var(--border);margin:20px 0;}
+.setup-status{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);margin-bottom:20px;font-size:0.83rem;}
+.setup-status .dot{width:8px;height:8px;border-radius:50%;background:var(--text-muted);flex-shrink:0;}
+.setup-status.has-data .dot{background:var(--green);box-shadow:0 0 6px rgba(34,197,94,0.5);}
+.setup-status.has-data{border-color:rgba(34,197,94,0.3);}
+.wizard-progress{display:flex;gap:4px;margin-bottom:24px;}
+.wizard-step-dot{height:4px;flex:1;background:var(--border);border-radius:2px;transition:var(--transition);}
+.wizard-step-dot.done{background:var(--amber);}
+.wizard-step-dot.active{background:var(--amber-light);}
+.wizard-question{font-family:var(--font-display);font-size:1.15rem;font-weight:700;color:var(--text-primary);margin-bottom:6px;line-height:1.3;}
+.wizard-hint{font-size:0.8rem;color:var(--text-muted);margin-bottom:18px;font-family:var(--font-mono);}
+.wizard-options{display:flex;flex-direction:column;gap:10px;margin-bottom:24px;}
+.wizard-option{padding:14px 16px;background:var(--bg-surface);border:1.5px solid var(--border);border-radius:var(--radius-md);cursor:pointer;transition:var(--transition);display:flex;align-items:flex-start;gap:12px;}
+.wizard-option:hover{border-color:var(--border-light);background:var(--bg-hover);}
+.wizard-option.selected{border-color:var(--amber);background:var(--amber-glow);}
+.wo-icon{font-size:1.4rem;flex-shrink:0;margin-top:1px;}
+.wo-text strong{display:block;font-family:var(--font-display);font-weight:700;font-size:0.9rem;color:var(--text-primary);margin-bottom:2px;}
+.wo-text span{font-size:0.78rem;color:var(--text-muted);line-height:1.4;}
+.wizard-nav{display:flex;justify-content:space-between;align-items:center;gap:12px;}
+.result-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-xl);overflow:hidden;margin-bottom:16px;}
+.result-header{background:linear-gradient(135deg,var(--amber-dark),var(--amber));padding:20px;color:var(--text-on-amber);}
+.result-header h2{font-family:var(--font-display);font-weight:800;font-size:1.2rem;margin-bottom:4px;}
+.result-header p{font-size:0.8rem;opacity:0.8;font-family:var(--font-mono);}
+.result-section{padding:18px 20px;border-bottom:1px solid var(--border);}
+.result-section:last-child{border-bottom:none;}
+.result-section-title{font-family:var(--font-display);font-weight:700;font-size:0.75rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--amber);margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.product-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
+.product-item:last-child{border-bottom:none;padding-bottom:0;}
+.product-info{flex:1;min-width:0;}
+.product-info strong{display:block;font-size:0.88rem;font-weight:600;color:var(--text-primary);margin-bottom:2px;}
+.product-info span{font-size:0.75rem;color:var(--text-secondary);line-height:1.4;}
+.product-icon{font-size:1.2rem;flex-shrink:0;margin-top:2px;}
+.tip-item{display:flex;gap:10px;padding:8px 0;font-size:0.83rem;color:var(--text-secondary);line-height:1.5;border-bottom:1px solid var(--border);}
+.tip-item:last-child{border-bottom:none;padding-bottom:0;}
+.tip-num{font-family:var(--font-mono);font-size:0.7rem;color:var(--amber);font-weight:700;flex-shrink:0;margin-top:3px;}
+.warning-item{display:flex;gap:8px;padding:6px 0;font-size:0.82rem;color:#f87171;line-height:1.4;}
+.saved-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px;transition:var(--transition);}
+.saved-card-main{flex:1;cursor:pointer;display:flex;align-items:center;gap:12px;min-width:0;}
+.saved-card-main:hover .saved-card-info strong{color:var(--amber);}
+.saved-card-info{flex:1;min-width:0;}
+.saved-card-info strong{display:block;font-family:var(--font-display);font-weight:700;font-size:0.88rem;color:var(--text-primary);margin-bottom:3px;transition:var(--transition);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.saved-card-info span{font-size:0.75rem;color:var(--text-muted);font-family:var(--font-mono);}
+.saved-card-icon{font-size:1.5rem;flex-shrink:0;}
+.saved-card-actions{display:flex;gap:6px;flex-shrink:0;}
+.sc-btn{background:transparent;border:1px solid var(--border);color:var(--text-muted);font-size:0.75rem;padding:5px 9px;border-radius:var(--radius-sm);cursor:pointer;transition:var(--transition);font-family:var(--font-mono);}
+.sc-btn:hover{border-color:var(--border-light);color:var(--text-secondary);}
+.sc-btn.del:hover{border-color:var(--red);color:#f87171;background:rgba(239,68,68,0.08);}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:1000;display:flex;align-items:flex-end;justify-content:center;padding:16px;opacity:0;pointer-events:none;transition:opacity 0.25s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-xl) var(--radius-xl) var(--radius-md) var(--radius-md);width:100%;max-width:560px;max-height:85dvh;overflow-y:auto;padding:24px;transform:translateY(20px);transition:transform 0.25s;}
+.modal-overlay.open .modal{transform:translateY(0);}
+.modal-title{font-family:var(--font-display);font-weight:800;font-size:1.1rem;margin-bottom:16px;color:var(--text-primary);}
+.empty-state{text-align:center;padding:40px 20px;color:var(--text-muted);}
+.empty-state .empty-icon{font-size:2.5rem;margin-bottom:12px;}
+.empty-state p{font-size:0.85rem;line-height:1.5;}
+.empty-state strong{display:block;font-family:var(--font-display);font-weight:700;font-size:0.95rem;color:var(--text-secondary);margin-bottom:6px;}
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--bg-card);border:1px solid var(--amber-dark);border-radius:var(--radius-md);padding:10px 18px;font-size:0.82rem;color:var(--text-primary);font-family:var(--font-mono);z-index:2000;opacity:0;transition:all 0.3s;white-space:nowrap;pointer-events:none;box-shadow:var(--shadow-amber);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.contact-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);text-decoration:none;color:var(--text-secondary);font-size:0.85rem;transition:var(--transition);}
+.contact-item:last-child{border-bottom:none;}
+.contact-item:hover{color:var(--amber);}
+.contact-icon{font-size:1.1rem;width:28px;text-align:center;}
+.about-niky{display:flex;gap:16px;align-items:flex-start;padding:16px 0;}
+.about-avatar{width:48px;height:48px;background:var(--amber);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;color:var(--text-on-amber);}
+.about-text strong{display:block;font-family:var(--font-display);font-weight:700;font-size:0.95rem;margin-bottom:4px;}
+.about-text p{font-size:0.82rem;color:var(--text-secondary);line-height:1.5;}
+.settings-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid var(--border);}
+.settings-row:last-child{border-bottom:none;}
+.settings-row-text strong{display:block;font-size:0.85rem;font-weight:600;color:var(--text-primary);margin-bottom:2px;}
+.settings-row-text span{font-size:0.75rem;color:var(--text-muted);}
+@media(max-width:480px){.nav-tab{font-size:0.58rem;padding:8px 3px;}.section-title{font-size:1.25rem;}.check-group{grid-template-columns:1fr;}.wizard-question{font-size:1rem;}.saved-card-actions{flex-direction:column;}}
+@media print{.nav-tabs,.app-header,.wizard-nav,.print-hide,.toast,.modal-overlay{display:none!important;}.section{display:none!important;}.print-target{display:block!important;}body{background:white;color:#111;}.result-card{border:1px solid #ccc;break-inside:avoid;}.result-header{background:#e69500!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}.btn-row{display:none!important;}}
+</style>
+</head>
+<body>
+<div id="print-target" class="print-target" style="display:none"></div>
+<div class="app-wrapper">
+  <header class="app-header">
+    <div class="header-logo">🎙️</div>
+    <div class="header-text">
+      <h1>Podcast Companion</h1>
+      <p>by Domenico Olivieri<br>Podcast Coach · Editor · Sound Designer</p>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn" title="Cambia tema">🌙</button>
+  </header>
+  <nav class="nav-tabs" role="tablist">
+    <button class="nav-tab active" onclick="switchTab('setup')" id="tab-setup">Il mio<br>Setup</button>
+    <button class="nav-tab" onclick="switchTab('wizard')" id="tab-wizard">Wizard<br>Consigli</button>
+    <button class="nav-tab" onclick="switchTab('saved')" id="tab-saved">Schede<br>Salvate</button>
+    <button class="nav-tab" onclick="switchTab('about')" id="tab-about">Chi<br>sono</button>
+    <button class="nav-tab" onclick="switchTab('settings')" id="tab-settings">⚙️<br>Imposta</button>
+  </nav>
+
+  <!-- SETUP -->
+  <section id="section-setup" class="section active">
+    <h2 class="section-title">Il mio Setup</h2>
+    <p class="section-sub">Inserisci la tua strumentazione. Verrà usata dal Wizard per consigliarti solo quello che ti manca.</p>
+    <div id="setup-status-bar" class="setup-status"><div class="dot"></div><span id="setup-status-text">Nessun setup salvato — compilalo adesso.</span></div>
+    <div class="card">
+      <div class="card-title">Microfono</div>
+      <div class="form-group"><label class="form-label">Tipo di connessione</label>
+        <select class="form-select" id="mic-type">
+          <option value="">— non ho un microfono —</option>
+          <option value="usb">USB</option><option value="xlr">XLR</option>
+          <option value="mobile-aux">Minijack / lavalier da mobile</option>
+          <option value="headset">Cuffie con microfono integrato</option>
+        </select></div>
+      <div class="form-group"><label class="form-label">Modello <span class="optional">(opzionale)</span></label>
+        <input type="text" class="form-input" id="mic-model" placeholder="es. Shure SM58, HyperX Quadcast…"></div>
+      <div class="form-group" id="fethead-group" style="display:none"><label class="form-label">Hai il Fethead (preamp inline)?</label>
+        <select class="form-select" id="has-fethead"><option value="no">No</option><option value="yes">Sì</option></select></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Interfaccia Audio</div>
+      <div class="form-group"><label class="form-label">Interfaccia audio</label>
+        <select class="form-select" id="interface-type">
+          <option value="">— non ho un'interfaccia —</option>
+          <option value="scarlett-solo">Focusrite Scarlett Solo</option>
+          <option value="scarlett-2i2">Focusrite Scarlett 2i2</option>
+          <option value="scarlett-4i4">Focusrite Scarlett 4i4</option>
+          <option value="other-interface">Altra interfaccia</option>
+          <option value="mixer">Mixer</option>
+        </select></div>
+      <div class="form-group" id="interface-other-group" style="display:none">
+        <label class="form-label">Modello <span class="optional">(opzionale)</span></label>
+        <input type="text" class="form-input" id="interface-model" placeholder="es. SSL 2, Behringer UMC22…"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Software</div>
+      <div class="form-group"><label class="form-label">Software principale</label>
+        <select class="form-select" id="software">
+          <option value="">— non ho software —</option>
+          <option value="audacity">Audacity (gratuito)</option>
+          <option value="protools-intro">Pro Tools Intro (gratuito)</option>
+          <option value="protools">Pro Tools (a pagamento)</option>
+          <option value="adobe-audition">Adobe Audition (a pagamento)</option>
+          <option value="reaper">Reaper</option>
+          <option value="logic">Logic Pro (Mac)</option>
+          <option value="garageband">GarageBand (Mac/iOS)</option>
+          <option value="ferrite">Ferrite Recording Studio (iOS)</option>
+          <option value="waveeditor">WaveEditor (Android)</option>
+          <option value="other-sw">Altro</option>
+        </select></div>
+      <div class="form-group" id="sw-other-group" style="display:none">
+        <label class="form-label">Quale software?</label>
+        <input type="text" class="form-input" id="software-other" placeholder="es. Hindenburg, Descript…"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Ambiente & Accessori</div>
+      <div class="form-group"><label class="form-label">Dove registri principalmente?</label>
+        <select class="form-select" id="room-type">
+          <option value="">— non so ancora —</option>
+          <option value="home-untreated">Casa non trattata acusticamente</option>
+          <option value="home-treated">Casa parzialmente trattata (tende, divani, librerie)</option>
+          <option value="studio">Studio fonoassorbente / stanza dedicata</option>
+          <option value="mobile">In mobilità / esterno</option>
+        </select></div>
+      <div class="form-group"><label class="form-label">Accessori che già possiedi <span class="optional">(seleziona tutto quello che hai)</span></label>
+        <div class="check-group" id="accessories-group">
+          <label class="check-item" id="acc-arm-label"><input type="checkbox" id="acc-arm" onchange="toggleCheckStyle('acc-arm-label')"> Braccio mic</label>
+          <label class="check-item" id="acc-stand-label"><input type="checkbox" id="acc-stand" onchange="toggleCheckStyle('acc-stand-label')"> Supporto da tavolo</label>
+          <label class="check-item" id="acc-popfilter-label"><input type="checkbox" id="acc-popfilter" onchange="toggleCheckStyle('acc-popfilter-label')"> Filtro antipop</label>
+          <label class="check-item" id="acc-shockmount-label"><input type="checkbox" id="acc-shockmount" onchange="toggleCheckStyle('acc-shockmount-label')"> Shock mount</label>
+          <label class="check-item" id="acc-shield-label"><input type="checkbox" id="acc-shield" onchange="toggleCheckStyle('acc-shield-label')"> Shield fonoassorbente</label>
+          <label class="check-item" id="acc-headphones-label"><input type="checkbox" id="acc-headphones" onchange="toggleCheckStyle('acc-headphones-label')"> Cuffie chiuse</label>
+        </div></div>
+      <div class="form-group"><label class="form-label">Note libere <span class="optional">(opzionale)</span></label>
+        <textarea class="form-textarea" id="setup-notes" placeholder="es. ho un PC Windows 10, uso anche lo smartphone…"></textarea></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="saveSetup()">💾 Salva Setup</button>
+      <button class="btn btn-secondary" id="clear-setup-btn" onclick="clearSetup()" style="display:none">🗑 Cancella tutto</button>
+    </div>
+  </section>
+
+  <!-- WIZARD -->
+  <section id="section-wizard" class="section">
+    <h2 class="section-title">Wizard Consigli</h2>
+    <p class="section-sub">Rispondi ad alcune domande e ricevi una scheda personalizzata.</p>
+    <div id="wizard-intro">
+      <div class="notice notice-amber"><span class="notice-icon">💡</span><span id="wizard-intro-text">Se hai già compilato il tuo Setup, il Wizard analizzerà quello che hai e ti dirà solo cosa ti manca.</span></div>
+      <div class="wizard-options">
+        <div class="wizard-option" onclick="startWizard('own')" id="wo-own">
+          <div class="wo-icon">🎙️</div><div class="wo-text"><strong>Usa il mio setup attuale</strong><span>Il Wizard analizza quello che hai e completa i gap</span></div>
+        </div>
+        <div class="wizard-option" onclick="startWizard('zero')" id="wo-zero">
+          <div class="wo-icon">🚀</div><div class="wo-text"><strong>Parti da zero</strong><span>Costruiamo il setup ideale da zero per il tuo caso</span></div>
+        </div>
+      </div>
+    </div>
+    <div id="wizard-questions" style="display:none">
+      <div class="wizard-progress" id="wizard-progress"></div>
+      <div id="wizard-q-container"></div>
+      <div class="wizard-nav">
+        <button class="btn btn-secondary" onclick="wizardBack()" id="wizard-btn-back">← Indietro</button>
+        <button class="btn btn-primary" onclick="wizardNext()" id="wizard-btn-next">Avanti →</button>
+      </div>
+    </div>
+    <div id="wizard-result" style="display:none"></div>
+  </section>
+
+  <!-- SCHEDE SALVATE -->
+  <section id="section-saved" class="section">
+    <h2 class="section-title">Schede Salvate</h2>
+    <p class="section-sub">Le tue configurazioni generate dal Wizard.</p>
+    <div id="saved-list"></div>
+  </section>
+
+  <!-- CHI SONO -->
+  <section id="section-about" class="section">
+    <h2 class="section-title">Chi sono</h2>
+    <p class="section-sub">Podcast Coach, Editor & Sound Designer</p>
+    <div class="card">
+      <div class="about-niky">
+        <div class="about-avatar">🎧</div>
+        <div class="about-text"><strong>Domenico Olivieri</strong>
+          <p>Podcast coach, editor e sound designer. Aiuto podcaster a registrare meglio, suonare professionali e costruire show che valga la pena ascoltare, e soprattutto dei quali esserne fieri! Questa web app è uno strumento gratuito per la mia community.</p>
+        </div>
+      </div>
+      <hr class="divider">
+      <div class="card-title">Contatti</div>
+      <a href="https://instagram.com/domenicoolivieri_" target="_blank" class="contact-item"><span class="contact-icon">📸</span><span>@domenicoolivieri_</span><span style="margin-left:auto;font-size:0.75rem;color:var(--text-muted)">Instagram →</span></a>
+      <a href="https://www.olivieridomenico.it" target="_blank" class="contact-item"><span class="contact-icon">🌐</span><span>www.olivieridomenico.it</span><span style="margin-left:auto;font-size:0.75rem;color:var(--text-muted)">Sito →</span></a>
+      <a href="mailto:info@olivieridomenico.it" class="contact-item"><span class="contact-icon">✉️</span><span>info@olivieridomenico.it</span><span style="margin-left:auto;font-size:0.75rem;color:var(--text-muted)">Email →</span></a>
+    </div>
+  </section>
+
+  <!-- IMPOSTAZIONI -->
+  <section id="section-settings" class="section">
+    <h2 class="section-title">Impostazioni</h2>
+    <p class="section-sub">Backup, ripristino e gestione dei dati dell'app.</p>
+    <div class="card">
+      <div class="card-title">Backup & Ripristino</div>
+      <div class="settings-row"><div class="settings-row-text"><strong>Esporta backup</strong><span>Scarica un file JSON con setup e tutte le schede salvate</span></div><button class="btn btn-ghost" onclick="exportBackup()">⬇️ Esporta</button></div>
+      <div class="settings-row"><div class="settings-row-text"><strong>Importa backup</strong><span>Ripristina setup e schede da un file di backup precedente</span></div><label class="btn btn-ghost" style="cursor:pointer">⬆️ Importa<input type="file" accept=".json" style="display:none" onchange="importBackup(event)"></label></div>
+    </div>
+    <div class="card"><div class="card-title">Informazioni App</div><p style="font-size:0.82rem;color:var(--text-muted);line-height:1.6;">Podcast Companion v1.0 — App gratuita, funziona offline, nessun dato viene inviato a server esterni. Tutto è salvato solo sul tuo dispositivo.</p></div>
+    <div class="card" style="border-color:rgba(239,68,68,0.3)">
+      <div class="card-title" style="color:#f87171">⚠️ Zona pericolosa</div>
+      <div class="notice notice-red" style="margin-bottom:16px"><span class="notice-icon">🔴</span><span>Il reset cancella permanentemente il tuo setup e tutte le schede salvate. L'operazione non è reversibile.</span></div>
+      <button class="btn btn-danger" style="font-size:0.82rem;padding:10px 18px" onclick="resetEverything()">🗑 Reset totale — cancella tutto</button>
+    </div>
+  </section>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="save-modal">
+  <div class="modal"><div class="modal-title">💾 Salva questa scheda</div>
+    <div class="form-group"><label class="form-label">Dai un nome a questa configurazione</label><input type="text" class="form-input" id="card-name-input" placeholder="es. Setup interviste remote…" maxlength="60"></div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="confirmSaveCard()">Salva</button><button class="btn btn-secondary" onclick="closeSaveModal()">Annulla</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="rename-modal">
+  <div class="modal"><div class="modal-title">✏️ Rinomina scheda</div>
+    <div class="form-group"><label class="form-label">Nuovo nome</label><input type="text" class="form-input" id="rename-input" maxlength="60"></div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="confirmRename()">Rinomina</button><button class="btn btn-secondary" onclick="closeRenameModal()">Annulla</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="view-modal">
+  <div class="modal"><div id="view-modal-content"></div>
+    <div class="btn-row print-hide" style="margin-top:16px">
+      <button class="btn btn-ghost" onclick="copyCardText()">📋 Copia testo</button>
+      <button class="btn btn-ghost" onclick="printSavedCard()">🖨️ Stampa / PDF</button>
+      <button class="btn btn-secondary" onclick="closeViewModal()">Chiudi</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const DB = {
+  mic:{
+    usb:[
+      {name:'HyperX QuadCast',price:'~130€',note:'Primo consiglio USB: pattern multipli, ottima qualità, antivibrazioni integrato. In modalità figura polare a 8 permette due voci con un solo microfono.'},
+      {name:'HyperX DuoCast', price:'~80€', note:'Secondo consiglio USB: più economico, ottimo rapporto qualità/prezzo.'},
+      {name:'HyperX SoloCast',price:'~50€', note:'Terzo consiglio USB: essenziale ma funziona bene per chi inizia con budget minimo.'}
+    ],
+    xlr:[
+      {name:'Shure SM58',price:'~100€',note:'Microfono dinamico cardioide, perfetto per ambienti non trattati. Richiede Fethead per guadagno audio migliore.'},
+      {name:'Shure MV7', price:'~230€',note:'USB/XLR ibrido, ottima qualità, meno dipendente dall\'ambiente. Con XLR richiede Fethead.'}
+    ]
+  },
+  mic_mobile:[
+    {name:'Rode Lavalier Go',price:'~60€',note:'Lavalier di qualità con connettore minijack TRRS, compatibile direttamente con smartphone. Prima scelta per chi registra da mobile.'},
+    {name:'Shure MV88+',     price:'~250€',note:'Microfono a condensatore con connettore Lightning/USB-C. Ottima qualità. Costa un casino, ma se vuoi il meglio sul mobile è lui.'}
+  ],
+  interface:[
+    {name:'Focusrite Scarlett Solo',price:'~130€',channels:1,note:'Perfetta per solo voce. 1 ingresso XLR.'},
+    {name:'Focusrite Scarlett 2i2', price:'~180€',channels:2,note:'Ideale per duo o backup. 2 ingressi XLR.'},
+    {name:'Focusrite Scarlett 4i4', price:'~260€',channels:4,note:'Per trio o panel fino a 4 voci. 4 ingressi.'}
+  ],
+  fethead:{name:'Triton Audio Fethead',price:'~60€',note:'Preamp inline essenziale con qualsiasi microfono XLR.'},
+  headphones:{name:'Sony MDR-ZX110',price:'~15€',note:'Cuffie chiuse entry level, perfette per il monitoring durante la registrazione. Fanno esattamente quello che devono fare a un prezzo minimo.'},
+  software:{
+    free:[
+      {name:'Pro Tools Intro',note:'Gratuito, professionale. Limite: 16 tracce audio, 1 plug-in I/O, nessun freeze. Non puoi registrare con microfono USB: usa Audacity per registrare, poi esporta in WAV e importa qui per montare.'},
+      {name:'Audacity',       note:'Gratuito e open source. Ottimo per registrazione e rimozione rumore di fondo. Sconsigliato per editing e sonorizzazione. Utilissimo per registrare in locale durante interviste remote.'}
+    ],
+    paid:[
+      {name:'Adobe Audition',note:'A pagamento (abbonamento Creative Cloud). Potente per podcast editing e sound design. Ottimo tool di normalizzazione integrato.'},
+      {name:'Pro Tools',     note:'Standard professionale. A pagamento (abbonamento). Consigliato quando vuoi fare il salto definitivo al pro.'}
+    ],
+    mobile_ios:    {name:'Ferrite Recording Studio Pro (iOS)',price:'~35€ una tantum',note:'La scelta migliore su iOS. La versione Pro a 35€ una tantum sblocca automazioni, esportazione lossless, puntate oltre un\'ora e funzioni avanzate di editing. DAW podcast-oriented vera e propria.'},
+    mobile_android:{name:'WaveEditor (Android)',price:'Gratuita / Pro',note:'L\'opzione più completa su Android per registrare e montare audio. Interfaccia da DAW, editing multipista, effetti e formati professionali.'}
+  },
+  accessories:{
+    arm:       {name:'Braccio microfono',     price:'~20-50€',note:'Prima scelta per il supporto. Libera il tavolo, permette il posizionamento ottimale e evita vibrazioni.'},
+    stand:     {name:'Supporto da tavolo',     price:'~10-20€',note:'Alternativa al braccio. Meno flessibile ma più compatto. Attenzione alle vibrazioni.'},
+    popfilter: {name:'Filtro antipop',         price:'~10-15€',note:'Indispensabile. Elimina le esplosive P/B. Non registrare senza.'},
+    shockmount:{name:'Shock mount',            price:'~15-30€',note:'Riduce le vibrazioni strutturali. Non tutti sono universali, cercalo per il tuo modello di microfono.'},
+    shield:    {name:'Shield fonoassorbente',  price:'~30-80€',note:'Riduce il riverbero dietro e lateralmente al mic. Non fa miracoli, ma aiuta in stanze molto riverberanti quando non puoi fare altro.'}
+  },
+  remote:[
+    {name:'Riverside.fm',                     note:'Prima scelta per interviste remote. Registra in locale lato ospite automaticamente, qualità audio/video alta.'},
+    {name:'Zencastr',                         note:'Alternativa valida a Riverside. Registrazione locale automatica per tutti i partecipanti.'},
+    {name:'Zoom / Teams / Discord + Audacity',note:'Soluzione di emergenza gratuita: ognuno registra in locale su Audacity, poi invia il file.'}
+  ]
+};
+
+/* NAV */
+function switchTab(tab){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  var sec=document.getElementById('section-'+tab), tb=document.getElementById('tab-'+tab);
+  if(sec)sec.classList.add('active');
+  if(tb)tb.classList.add('active');
+  if(tab==='saved')renderSavedList();
+  if(tab==='wizard')resetWizardIntro();
+}
+function showToast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600);}
+function toggleCheckStyle(id){var l=document.getElementById(id);l.classList.toggle('checked',l.querySelector('input').checked);}
+function loadTheme(){var s=localStorage.getItem('pc_theme')||'dark';document.documentElement.setAttribute('data-theme',s);var b=document.getElementById('theme-btn');if(b)b.textContent=s==='dark'?'🌙':'☀️';}
+
+/* SETUP */
+function getSetupData(){return{micType:document.getElementById('mic-type').value,micModel:document.getElementById('mic-model').value.trim(),hasFethead:document.getElementById('has-fethead').value,interfaceType:document.getElementById('interface-type').value,interfaceModel:document.getElementById('interface-model').value.trim(),software:document.getElementById('software').value,softwareOther:document.getElementById('software-other').value.trim(),roomType:document.getElementById('room-type').value,accessories:{arm:document.getElementById('acc-arm').checked,stand:document.getElementById('acc-stand').checked,popfilter:document.getElementById('acc-popfilter').checked,shockmount:document.getElementById('acc-shockmount').checked,shield:document.getElementById('acc-shield').checked,headphones:document.getElementById('acc-headphones').checked},notes:document.getElementById('setup-notes').value.trim()};}
+function saveSetup(){localStorage.setItem('pc_setup',JSON.stringify(getSetupData()));updateSetupStatus();showToast('✅ Setup salvato!');}
+function loadSetup(){var raw=localStorage.getItem('pc_setup');if(!raw)return;var d=JSON.parse(raw);document.getElementById('mic-type').value=d.micType||'';document.getElementById('mic-model').value=d.micModel||'';document.getElementById('has-fethead').value=d.hasFethead||'no';document.getElementById('interface-type').value=d.interfaceType||'';document.getElementById('interface-model').value=d.interfaceModel||'';document.getElementById('software').value=d.software||'';document.getElementById('software-other').value=d.softwareOther||'';document.getElementById('room-type').value=d.roomType||'';document.getElementById('setup-notes').value=d.notes||'';if(d.accessories){Object.entries(d.accessories).forEach(([k,v])=>{var el=document.getElementById('acc-'+k),lb=document.getElementById('acc-'+k+'-label');if(el){el.checked=v;if(lb)lb.classList.toggle('checked',v);}});}document.getElementById('fethead-group').style.display=d.micType==='xlr'?'block':'none';document.getElementById('interface-other-group').style.display=['other-interface','mixer'].includes(d.interfaceType)?'block':'none';document.getElementById('sw-other-group').style.display=d.software==='other-sw'?'block':'none';updateSetupStatus();}
+function clearSetup(){if(!confirm('Sicuro di voler cancellare il tuo setup?'))return;localStorage.removeItem('pc_setup');['mic-type','mic-model','interface-type','interface-model','software','software-other','room-type','setup-notes'].forEach(id=>{var el=document.getElementById(id);if(el)el.value='';});document.getElementById('has-fethead').value='no';document.querySelectorAll('#accessories-group input[type="checkbox"]').forEach(cb=>{cb.checked=false;cb.closest('label').classList.remove('checked');});['fethead-group','interface-other-group','sw-other-group'].forEach(id=>document.getElementById(id).style.display='none');updateSetupStatus();showToast('🗑 Setup cancellato');}
+function updateSetupStatus(){var raw=localStorage.getItem('pc_setup'),bar=document.getElementById('setup-status-bar'),txt=document.getElementById('setup-status-text'),btn=document.getElementById('clear-setup-btn');if(raw){var d=JSON.parse(raw);bar.classList.add('has-data');var parts=[];if(d.micType)parts.push(d.micModel||d.micType);if(d.interfaceType)parts.push(d.interfaceType.replace(/-/g,' '));if(d.software)parts.push(d.software.replace(/-/g,' '));txt.textContent=parts.length?'Setup attivo: '+parts.join(' · '):'Setup salvato';if(btn)btn.style.display='inline-flex';}else{bar.classList.remove('has-data');txt.textContent='Nessun setup salvato — compilalo adesso.';if(btn)btn.style.display='none';}}
+document.getElementById('mic-type').addEventListener('change',function(){document.getElementById('fethead-group').style.display=this.value==='xlr'?'block':'none';});
+document.getElementById('interface-type').addEventListener('change',function(){document.getElementById('interface-other-group').style.display=['other-interface','mixer'].includes(this.value)?'block':'none';});
+document.getElementById('software').addEventListener('change',function(){document.getElementById('sw-other-group').style.display=this.value==='other-sw'?'block':'none';});
+
+/* WIZARD */
+const WQ=[
+  {id:'format',q:'Che formato ha il tuo podcast?',hint:'Scegli il formato principale',options:[
+    {val:'solo',icon:'🎤',label:'Solo voce',desc:'Parli solo tu: monologhi, narrazioni, storytelling'},
+    {val:'duo-presence',icon:'👥',label:'Due voci — in presenza',desc:'Tu e un ospite/co-host fisicamente insieme'},
+    {val:'duo-remote',icon:'🌐',label:'Due voci — da remoto',desc:'Tu e un ospite/co-host collegati a distanza'},
+    {val:'panel',icon:'🎭',label:'Panel 3+ persone',desc:'Tre o più voci, in presenza o da remoto'}
+  ]},
+  {id:'room',q:'Come descriveresti il tuo ambiente di registrazione?',hint:'Questo influenza molto il tipo di microfono consigliato',options:[
+    {val:'home-untreated',icon:'🏠',label:'Casa non trattata',desc:'Stanza normale, senza pannelli o materiale fonoassorbente'},
+    {val:'home-treated',icon:'🛋️',label:'Casa parzialmente trattata',desc:'Tende pesanti, tappeti, librerie, divani — riverbero basso'},
+    {val:'studio',icon:'🎚️',label:'Studio / stanza dedicata',desc:'Stanza trattata o professionale'},
+    {val:'mobile',icon:'📱',label:'In mobilità',desc:'Fuori casa, in viaggio, in automobile'}
+  ]},
+  {id:'budget',q:'Qual è il tuo budget per l\'attrezzatura?',hint:'Solo se stai costruendo un setup da zero',options:[
+    {val:'entry',icon:'💶',label:'Entry — fino a 100€',desc:'Il minimo per partire decentemente'},
+    {val:'mid',icon:'💰',label:'Mid — 100–250€',desc:'Il punto dolce: qualità solida senza esagerare'},
+    {val:'pro',icon:'🏆',label:'Pro — oltre 250€',desc:'Vuoi il meglio fin da subito (per iniziare te lo sconsiglio...)'}
+  ]}
+];
+var wizardMode=null,wizardStep=0,wizardAnswers={},pendingCardData=null,currentViewCardKey=null,currentRenameKey=null;
+function resetWizardIntro(){document.getElementById('wizard-intro').style.display='block';document.getElementById('wizard-questions').style.display='none';document.getElementById('wizard-result').style.display='none';wizardStep=0;wizardAnswers={};var setup=localStorage.getItem('pc_setup'),ownOpt=document.getElementById('wo-own');if(setup){document.getElementById('wizard-intro-text').textContent='Setup rilevato ✅ — il Wizard analizzerà quello che hai e ti dirà solo cosa ti manca.';ownOpt.style.opacity='1';ownOpt.style.pointerEvents='auto';}else{document.getElementById('wizard-intro-text').textContent='Non hai ancora salvato il tuo setup. Puoi comunque usare la modalità "Parti da zero".';ownOpt.style.opacity='0.4';ownOpt.style.pointerEvents='none';}}
+function startWizard(mode){wizardMode=mode;wizardAnswers={};wizardStep=0;if(mode==='own'){var raw=localStorage.getItem('pc_setup');if(raw){var d=JSON.parse(raw);if(d.roomType)wizardAnswers.room=d.roomType;}}document.getElementById('wizard-intro').style.display='none';document.getElementById('wizard-questions').style.display='block';document.getElementById('wizard-result').style.display='none';renderWizardStep();}
+function getActiveQs(){var qs=[...WQ];if(wizardMode==='own')qs=qs.filter(q=>q.id!=='budget');if(wizardMode==='own'&&wizardAnswers.room)qs=qs.filter(q=>q.id!=='room');return qs;}
+function renderWizardStep(){var qs=getActiveQs();document.getElementById('wizard-progress').innerHTML=qs.map((q,i)=>`<div class="wizard-step-dot ${i<wizardStep?'done':i===wizardStep?'active':''}"></div>`).join('');if(wizardStep>=qs.length){generateResult();return;}var q=qs[wizardStep],cur=wizardAnswers[q.id]||null;document.getElementById('wizard-q-container').innerHTML=`<p class="wizard-question">${q.q}</p><p class="wizard-hint">${q.hint}</p><div class="wizard-options">${q.options.map(o=>`<div class="wizard-option ${cur===o.val?'selected':''}" onclick="selectAnswer('${q.id}','${o.val}',this)"><div class="wo-icon">${o.icon}</div><div class="wo-text"><strong>${o.label}</strong><span>${o.desc}</span></div></div>`).join('')}</div>`;document.getElementById('wizard-btn-back').style.display=wizardStep===0?'none':'inline-flex';document.getElementById('wizard-btn-next').textContent=wizardStep===qs.length-1?'Genera scheda →':'Avanti →';}
+function selectAnswer(qId,val,el){wizardAnswers[qId]=val;el.closest('.wizard-options').querySelectorAll('.wizard-option').forEach(o=>o.classList.remove('selected'));el.classList.add('selected');}
+function wizardNext(){var q=getActiveQs()[wizardStep];if(!wizardAnswers[q.id]){showToast('⚠️ Scegli un\'opzione prima di continuare');return;}wizardStep++;renderWizardStep();}
+function wizardBack(){if(wizardStep>0){wizardStep--;renderWizardStep();}}
+function wizardRestart(){resetWizardIntro();document.getElementById('wizard-intro').style.display='block';document.getElementById('wizard-result').style.display='none';}
+
+/* RESULT */
+function generateResult(){document.getElementById('wizard-questions').style.display='none';document.getElementById('wizard-result').style.display='block';var setup=wizardMode==='own'?JSON.parse(localStorage.getItem('pc_setup')||'{}'):null;var format=wizardAnswers.format,room=wizardAnswers.room||(setup&&setup.roomType)||'home-untreated',budget=wizardAnswers.budget||'mid';if(format==='panel'){document.getElementById('wizard-result').innerHTML=buildPanelResult();return;}var result=buildRecommendation(format,room,budget,setup);document.getElementById('wizard-result').innerHTML=result.html;pendingCardData=result.data;}
+function pi(icon,name,note,badge,bc){return `<div class="product-item"><span class="product-icon">${icon}</span><div class="product-info"><strong>${name}</strong><span>${note}</span></div><span class="badge badge-${bc}">${badge}</span></div>`;}
+function buildPanelResult(){return `<div class="result-card"><div class="result-header"><h2>🎭 Panel 3+ voci</h2><p>Scenario avanzato — contattami direttamente</p></div><div class="result-section"><div class="result-section-title">📋 Perché questo scenario è diverso</div><div class="tip-item"><span class="tip-num">→</span><span>Un panel da 3 o più persone richiede un'interfaccia a più ingressi (Scarlett 4i4 o superiore), un microfono per ciascun partecipante e un setup di gain e monitoring più complesso.</span></div><div class="tip-item"><span class="tip-num">→</span><span>Il budget minimo sale significativamente rispetto a un setup solo o duo, e ci sono diverse variabili da valutare caso per caso.</span></div></div><div class="result-section"><div class="result-section-title">📞 La mossa giusta</div><div class="tip-item"><span class="tip-num">→</span><span>Fissa una consulenza con me: possiamo costruire la configurazione giusta per il tuo caso specifico.</span></div></div><div class="result-section"><div class="result-section-title">✉️ Dove trovarmi</div><div class="tip-item"><span class="tip-num">📸</span><span>Instagram: @domenicoolivieri_</span></div><div class="tip-item"><span class="tip-num">🌐</span><span>www.olivieridomenico.it</span></div><div class="tip-item"><span class="tip-num">✉️</span><span>info@olivieridomenico.it</span></div></div></div><div class="btn-row"><button class="btn btn-secondary" onclick="wizardRestart()">← Ricomincia</button></div>`;}
+
+function buildRecommendation(format,room,budget,setup){
+  var isDuo=format==='duo-presence'||format==='duo-remote',isRemote=format==='duo-remote',isMobile=room==='mobile',isHome=room==='home-untreated',hasSP=setup&&setup.micType,acc=hasSP&&setup.accessories?setup.accessories:{},gaps=[],warnings=[];
+  // MIC
+  var micHtml='';
+  if(isMobile){
+    micHtml+=pi('🎙️',DB.mic_mobile[0].name+' — '+DB.mic_mobile[0].price,DB.mic_mobile[0].note,'CONSIGLIATO','amber');
+    if(budget==='mid'||budget==='pro')micHtml+=pi('💎',DB.mic_mobile[1].name+' — '+DB.mic_mobile[1].price,DB.mic_mobile[1].note+(budget==='mid'?' — Al limite del budget mid, valuta bene.':''),budget==='pro'?'TOP DI GAMMA':'BUDGET LIMITE','blue');
+    micHtml+=pi('🚫','Microfono built-in dello smartphone','Non usare mai il microfono integrato per un podcast. Progettato per le telefonate: risultato piatto, metallico e poco professionale.','EVITARE','red');
+  }else if(hasSP){
+    if(setup.micType==='usb'){micHtml=pi('✅',setup.micModel||'Microfono USB','Ottimo per iniziare. USB è perfetto finché non vuoi fare il salto di qualità XLR.','HAI GI\u00c0','green');if(isDuo){gaps.push('secondo microfono');micHtml+=pi('➕','Secondo microfono per l\'ospite','Per due voci in presenza serve un secondo mic. Il computer non riesce a catturare due fonti USB contemporaneamente. Opzioni: due PC separati, un solo HyperX QuadCast in figura polare a 8, oppure due mic XLR con Scarlett 2i2.','DA AGGIUNGERE','amber');}}
+    else if(setup.micType==='xlr'){micHtml=pi('✅',setup.micModel||'Microfono XLR','Setup XLR — professionale.','HAI GI\u00c0','green');if(setup.hasFethead!=='yes'){gaps.push('Fethead');micHtml+=pi('⚠️',DB.fethead.name+' — '+DB.fethead.price,'Con qualsiasi microfono XLR su scheda audio è fortemente consigliato avere il Fethead. Senza, il segnale è troppo basso e il rumore di fondo sale.','MANCA','red');}else micHtml+=pi('✅','Fethead','Perfetto. Con Fethead il guadagno è ottimale.','HAI GI\u00c0','green');}
+    else if(setup.micType==='mobile-aux')micHtml=pi('⚠️','Microfono lavalier/minijack','Può andare se è di qualità. Un lavalier da 15€ è da evitare. Considera il Rode Lavalier Go (~60€). In generale sconsiglio la registrazione da mobile, ma se non cè altra scelta...','ATTENZIONE','amber');
+    else if(setup.micType==='headset'){gaps.push('microfono dedicato');micHtml=pi('🚫','Cuffie con microfono integrato','Vade Retro, Satana. Non va bene nemmeno per iniziare. Valuta un HyperX QuadCast, DuoCast o SoloCast.','UPGRADE URGENTE','red');}
+  }else{
+    if(budget==='entry'){micHtml=pi('🎙️',DB.mic.usb[2].name+' — '+DB.mic.usb[2].price,DB.mic.usb[2].note,'CONSIGLIATO','amber');micHtml+=pi('💡','Alternativa: '+DB.mic.usb[1].name+' — '+DB.mic.usb[1].price,DB.mic.usb[1].note+' (+30€ ma un gradino sopra.)','ALTERNATIVA','blue');}
+    else if(budget==='mid'){
+      if(isHome){micHtml=pi('🎙️',DB.mic.xlr[0].name+' — '+DB.mic.xlr[0].price,DB.mic.xlr[0].note,'CONSIGLIATO','amber');warnings.push('Il setup XLR completo (SM58 ~100€ + Fethead ~60€ + Scarlett Solo ~130€) arriva a circa 290€, leggermente sopra il budget mid. È comunque il miglior investimento: considera di acquistare i pezzi in momenti diversi, partendo dalla Scarlett Solo.');}
+      else{micHtml=pi('🎙️',DB.mic.usb[0].name+' — '+DB.mic.usb[0].price,DB.mic.usb[0].note+' Ottima scelta per ambiente trattato.','CONSIGLIATO','amber');micHtml+=pi('💡',DB.mic.xlr[0].name+' — '+DB.mic.xlr[0].price,DB.mic.xlr[0].note+' Alternativa XLR se vuoi già impostarti su un setup più professionale.','ALTERNATIVA XLR','blue');}
+    }else{
+      if(isHome)micHtml=pi('🎙️',DB.mic.xlr[0].name+' — '+DB.mic.xlr[0].price,DB.mic.xlr[0].note,'CONSIGLIATO','amber');
+      else{micHtml=pi('🎙️',DB.mic.xlr[1].name+' — '+DB.mic.xlr[1].price,DB.mic.xlr[1].note,'PRIMA SCELTA','amber');micHtml+=pi('💡',DB.mic.xlr[0].name+' — '+DB.mic.xlr[0].price,DB.mic.xlr[0].note+' Alternativa più economica.','ALTERNATIVA','blue');}
+    }
+  }
+  // IFACE
+  var ifaceHtml='';
+  if(isMobile)ifaceHtml=pi('📵','Non applicabile in mobilità','Le interfacce audio sono pensate per PC/Mac. Da mobile non servono: il microfono si collega direttamente allo smartphone tramite jack TRRS o Lightning/USB-C.','NON SERVE','muted');
+  else if(hasSP&&setup.interfaceType){ifaceHtml=pi('✅',fmtInterface(setup.interfaceType,setup.interfaceModel),'Interfaccia rilevata dal tuo setup.','HAI GI\u00c0','green');if(isDuo&&setup.interfaceType==='scarlett-solo'){gaps.push('interfaccia a 2 canali');ifaceHtml+=pi('⚠️','Scarlett 2i2 — ~180€','La Focusrite Scarlett Solo ha 1 solo ingresso XLR. Per due microfoni XLR ti serve almeno la 2i2.','SERVE UPGRADE','red');}}
+  else if(hasSP&&setup.micType==='usb')ifaceHtml=pi('\u2139\ufe0f','Non necessaria con USB','Con un microfono USB non serve interfaccia audio. È plug and play 🙂 Ricordati di selezionare il driver del microfono come fonte di ingresso nel tuo software!','NON SERVE','muted');
+  else if(!hasSP){
+    if(budget==='entry')ifaceHtml=pi('\u2139\ufe0f','Non necessaria con USB','Con un microfono USB non serve interfaccia audio. Risparmio utile nel budget entry.','NON SERVE','muted');
+    else{var iface=isDuo?DB.interface[1]:DB.interface[0];ifaceHtml=pi('🎛️',iface.name+' — '+iface.price,iface.note,'CONSIGLIATO','amber');ifaceHtml+=pi('⚡',DB.fethead.name+' — '+DB.fethead.price,DB.fethead.note,'OBBLIGATORIO','red');}
+  }
+  // SOFTWARE
+  var swHtml='';
+  if(isMobile){swHtml=pi('📱',DB.software.mobile_ios.name+' — '+DB.software.mobile_ios.price,DB.software.mobile_ios.note,'CONSIGLIATO iOS','amber');swHtml+=pi('📱',DB.software.mobile_android.name+' — '+DB.software.mobile_android.price,DB.software.mobile_android.note,'CONSIGLIATO Android','amber');swHtml+=pi('💡','Per il montaggio finale — considera il PC','Registrare da mobile va bene, ma per il montaggio finale ti consiglio di passare al PC con Pro Tools Intro o Adobe Audition.','CONSIGLIO','blue');}
+  else if(hasSP&&setup.software){var swName=fmtSoftware(setup.software,setup.softwareOther);swHtml=pi('✅',swName,'Software rilevato dal tuo setup.','HAI GI\u00c0','green');if(setup.software==='audacity')swHtml+=pi('💡','Pro Tools Intro (gratuito)','Audacity è ottimo per registrare, ma pessimo per fare montaggio. Pro Tools Intro è gratis e ti prepara alla grande.','CONSIDERA','blue');if(setup.software==='protools-intro')swHtml+=pi('\u2139\ufe0f','Nota sui limiti di Pro Tools Intro','Massimo 16 tracce audio, 1 plug-in I/O, nessuna funzione freeze. Non puoi registrare con microfono USB: usa Audacity per registrare, poi esporta in WAV e importa qui per montare.','NOTA','muted');if(isRemote)swHtml+=pi('🔴','Audacity per registrazione locale remota','Durante le interviste remote, tieni Audacity aperto per registrare la tua voce in locale. Esporta WAV e chiedi lo stesso all\'ospite. Fagli usare le cuffie!','AGGIUNGI','blue');}
+  else{if(budget==='entry')swHtml=DB.software.free.map(s=>pi('💻',s.name,s.note,'GRATUITO','green')).join('');else{swHtml=pi('💻',DB.software.free[0].name,DB.software.free[0].note,'GRATUITO','green');swHtml+=pi('💻',DB.software.free[1].name,DB.software.free[1].note,'GRATUITO','green');if(budget==='pro')swHtml+=pi('⭐',DB.software.paid[0].name,DB.software.paid[0].note+' Quando sei pronto a fare il salto.','UPGRADE','blue');}}
+  // ACCESSORIES
+  var accHtml='';
+  if(isMobile){accHtml=pi('🎧','Cuffie in-ear con filo (es. '+DB.headphones.name+' — '+DB.headphones.price+')','Usa le cuffie collegate allo smartphone per monitorare mentre registri. Evita le Bluetooth: la latenza le rende inutilizzabili per il monitoring.','CONSIGLIATO','amber');accHtml+=pi('📵','Modalità aereo durante la registrazione','Attiva la modalità aereo prima di iniziare. Elimina notifiche, chiamate in arrivo e rumori di vibrazione che possono rovinare la take.','IMPORTANTE','red');accHtml+=pi('🔋','Tieni il telefono in carica','Le sessioni lunghe scaricano la batteria. Collegalo all\'alimentatore mentre registri.','NOTA','blue');}
+  else{
+    if(hasSP&&acc.popfilter)accHtml+=pi('✅','Filtro antipop','Ottimo.','HAI GI\u00c0','green');
+    else{if(hasSP)gaps.push('filtro antipop');accHtml+=pi('🔴',DB.accessories.popfilter.name+' — '+DB.accessories.popfilter.price,DB.accessories.popfilter.note,hasSP?'MANCA':'CONSIGLIATO',hasSP?'red':'amber');}
+    if(hasSP&&(acc.arm||acc.stand))accHtml+=acc.arm?pi('✅','Braccio microfono','Prima scelta. Perfetto.','HAI GI\u00c0','green'):pi('✅','Supporto da tavolo','Va bene. Se puoi, considera il braccio come upgrade.','HAI GI\u00c0','green');
+    else{if(hasSP)gaps.push('supporto microfono');accHtml+=pi('🔴',DB.accessories.arm.name+' — '+DB.accessories.arm.price,DB.accessories.arm.note,hasSP?'MANCA':'CONSIGLIATO',hasSP?'red':'amber');}
+    // cuffie
+    var needPhones=isDuo;
+    if(hasSP&&acc.headphones)accHtml+=pi('✅','Cuffie chiuse','Ottimo'+(needPhones?', indispensabili in duo e in remoto.':'.'), 'HAI GI\u00c0','green');
+    else{if(hasSP&&needPhones)gaps.push('cuffie chiuse');accHtml+=pi(needPhones?'🔴':'🎧',DB.headphones.name+' — '+DB.headphones.price,DB.headphones.note+(needPhones?' In duo/remoto sono OBBLIGATORIE: senza cuffie il microfono riprende l\'audio dell\'ospite dagli altoparlanti e l\'eco rovina tutto.':' Consigliate per monitorare la registrazione in tempo reale.'),needPhones?(hasSP?'MANCA':'OBBLIGATORIE'):'CONSIGLIATE',needPhones?'red':'amber');}
+    if(isHome&&!(hasSP&&acc.shield))accHtml+=pi('💡',DB.accessories.shield.name+' — '+DB.accessories.shield.price,DB.accessories.shield.note,'OPZIONALE','blue');
+    else if(hasSP&&acc.shield)accHtml+=pi('✅','Shield fonoassorbente',DB.accessories.shield.note,'HAI GI\u00c0','green');
+    if(!hasSP&&budget==='pro')accHtml+=pi('💡',DB.accessories.shockmount.name+' — '+DB.accessories.shockmount.price,DB.accessories.shockmount.note,'CONSIGLIATO','blue');
+  }
+  // REMOTE
+  var remoteSection='';
+  if(isRemote)remoteSection=`<div class="result-section"><div class="result-section-title">🌐 Registrazione Remota</div>${DB.remote.map((r,i)=>`<div class="tip-item"><span class="tip-num">${i===0?'★':(i+1)+'.'}</span><span><strong>${r.name}</strong> — ${r.note}</span></div>`).join('')}<div class="tip-item"><span class="tip-num">→</span><span>Chiedi SEMPRE all'ospite di registrare in locale (anche su Audacity gratis) e di inviarti il file. Anche su Riverside/Zencastr questo avviene automaticamente, ma per sicurezza fai usare comunque Audacity.</span></div></div>`;
+  // TIPS
+  var tips=[];
+  if(isMobile){tips.push('Registra in un posto silenzioso: l\'auto parcheggiata è sorprendentemente buona — le sedute assorbono il riverbero e isola dai rumori esterni.');tips.push('Tieni il microfono lavalier agganciato al colletto, a circa 15-20 cm dalla bocca. Non troppo vicino (distorsione), non troppo lontano (rumore di fondo).');tips.push('Evita di muoverti mentre registri: i fruscii del microfono lavalier sulle stoffe sono difficilissimi da togliere in post.');tips.push('Fai sempre un test di 30 secondi con le cuffie collegate, prima di iniziare davvero.');tips.push('Dopo aver registrato, trasferisci subito il file sul PC come backup.');}
+  else{if(isHome){tips.push('Registra in un angolo della stanza, mai al centro, specie se la stanza è quadrata. Il centro riflette il suono da tutte le pareti e ingrossa il riverbero.');tips.push('Chiudi le finestre prima di registrare. Condizionatori, ventole, frigorifero: spegni tutto ciò che fa rumore in background.');tips.push('Riempiti di tende pesanti, cuscini, tappeti, librerie piene. Ogni superficie morbida assorbe frequenze e riduce il riverbero.');tips.push('Valuta di registrare dentro l\'armadio se puoi. Non scherzo.');}if(room==='home-treated'||room==='studio')tips.push('Con un ambiente trattato puoi permetterti un microfono a condensatore. Registra a distanza costante dal microfono (circa 10-20 cm) per un suono uniforme.');if(format==='duo-presence'){tips.push('Posiziona i microfoni in modo che il pattern di captazione di uno escluda la fonte dell\'altro. Con un solo mic usa la figura polare a 8, uno di fronte all\'altro.');tips.push('Usa cuffie durante la registrazione per monitorare: ti accorgi subito di problemi di livello o riverbero prima che sia troppo tardi.');}if(isRemote)tips.push('Le cuffie in remoto non sono negoziabili. Senza cuffie il microfono riprende l\'audio dell\'ospite dagli altoparlanti e l\'eco distrugge la registrazione.');tips.push('Registra sempre tra i -6dB e i -12dB di media nel tuo DAW. Mai andare in clip (meter in rosso). In post puoi alzare; non puoi abbassare la distorsione.');tips.push('Fai sempre un test di 30 secondi, ascoltalo in cuffia, poi inizia davvero. Non registrare 40 minuti per scoprire dopo che il gain era sbagliato.');}
+  // EXTRA WARNINGS
+  if(hasSP&&setup.micType==='xlr'&&setup.hasFethead!=='yes')warnings.push('Con un microfono XLR su scheda audio è fortemente consigliato avere il Fethead. Senza, il segnale è troppo basso e il rumore di fondo sale.');
+  if(isHome&&hasSP&&setup.micType==='usb'&&setup.micModel&&setup.micModel.toLowerCase().includes('quadcast'))warnings.push('Il QuadCast in casa non trattata: tienilo in modalità cardioide (non stereo o omnidirezionale) per minimizzare il riverbero.');
+  if(gaps.length>0)warnings.unshift('Hai '+gaps.length+' elemento/i da completare nel tuo setup: '+gaps.join(', ')+'.');
+  var budgetLabel={entry:'Entry',mid:'Mid',pro:'Pro'};
+  var resultHtml=`<div class="result-card"><div class="result-header"><h2>${fmtLabel(format)} ${fmtRoomEmoji(room)}</h2><p>${wizardMode==='own'?'Analisi del tuo setup · ':'Scheda completa · '}${fmtRoomLabel(room)}${!isMobile&&budget?' · Budget: '+budgetLabel[budget]:''}${isMobile?' · Mobile':''}</p></div>${warnings.length>0?`<div class="result-section"><div class="result-section-title">⚠️ Attenzione</div>${warnings.map(w=>`<div class="warning-item"><span>⚠</span><span>${w}</span></div>`).join('')}</div>`:''}<div class="result-section"><div class="result-section-title">🎙️ Microfono</div>${micHtml}</div><div class="result-section"><div class="result-section-title">🎛️ Interfaccia & Segnale</div>${ifaceHtml}</div><div class="result-section"><div class="result-section-title">💻 Software</div>${swHtml}</div><div class="result-section"><div class="result-section-title">🔧 Accessori</div>${accHtml}</div>${remoteSection}<div class="result-section"><div class="result-section-title">💡 Tips di Niky</div>${tips.map((t,i)=>`<div class="tip-item"><span class="tip-num">0${i+1}</span><span>${t}</span></div>`).join('')}</div></div><div class="btn-row"><button class="btn btn-primary" onclick="openSaveModal()">💾 Salva scheda</button><button class="btn btn-ghost" onclick="copyResultText()">📋 Copia testo</button><button class="btn btn-ghost" onclick="printResultCard()">🖨️ Stampa / PDF</button><button class="btn btn-secondary" onclick="wizardRestart()">← Ricomincia</button></div>`;
+  return{html:resultHtml,data:{format,room,budget,resultHtml,warnings,gaps,timestamp:new Date().toISOString()}};
+}
+
+function fmtInterface(t,m){return{'scarlett-solo':'Focusrite Scarlett Solo','scarlett-2i2':'Focusrite Scarlett 2i2','scarlett-4i4':'Focusrite Scarlett 4i4','other-interface':m||'Altra interfaccia','mixer':m||'Mixer'}[t]||t;}
+function fmtSoftware(s,o){return{'audacity':'Audacity','protools-intro':'Pro Tools Intro','protools':'Pro Tools','adobe-audition':'Adobe Audition','reaper':'Reaper','logic':'Logic Pro','garageband':'GarageBand','ferrite':'Ferrite Recording Studio','waveeditor':'WaveEditor','other-sw':o||'Altro software'}[s]||s;}
+function fmtLabel(f){return{'solo':'🎙️ Solo Voce','duo-presence':'👥 Duo — In Presenza','duo-remote':'🌐 Duo — Da Remoto','panel':'🎭 Panel 3+'}[f]||f;}
+function fmtRoomEmoji(r){return{'home-untreated':'🏠','home-treated':'🛋️','studio':'🎚️','mobile':'📱'}[r]||'';}
+function fmtRoomLabel(r){return{'home-untreated':'Casa non trattata','home-treated':'Casa trattata','studio':'Studio','mobile':'Mobilità'}[r]||r;}
+
+/* CARDS */
+function openSaveModal(){document.getElementById('card-name-input').value='';document.getElementById('save-modal').classList.add('open');setTimeout(()=>document.getElementById('card-name-input').focus(),300);}
+function closeSaveModal(){document.getElementById('save-modal').classList.remove('open');}
+function confirmSaveCard(){var name=document.getElementById('card-name-input').value.trim();if(!name){showToast('⚠️ Dai un nome alla scheda');return;}if(!pendingCardData)return;var key='pc_card_'+Date.now();localStorage.setItem(key,JSON.stringify({name,key,...pendingCardData}));closeSaveModal();showToast('✅ Scheda "'+name+'" salvata!');}
+function renderSavedList(){var container=document.getElementById('saved-list'),keys=Object.keys(localStorage).filter(k=>k.startsWith('pc_card_')).sort().reverse();if(!keys.length){container.innerHTML='<div class="empty-state"><div class="empty-icon">📋</div><strong>Nessuna scheda salvata</strong><p>Usa il Wizard per generare la tua prima scheda di configurazione.</p></div>';return;}container.innerHTML=keys.map(k=>{var d=JSON.parse(localStorage.getItem(k)),date=new Date(d.timestamp).toLocaleDateString('it-IT',{day:'2-digit',month:'short',year:'numeric'});return`<div class="saved-card"><div class="saved-card-main" onclick="openViewModal('${k}')"><div class="saved-card-icon">${fmtRoomEmoji(d.room)||'🎙️'}</div><div class="saved-card-info"><strong>${d.name}</strong><span>${fmtLabel(d.format)} · ${date}</span></div></div><div class="saved-card-actions"><button class="sc-btn" onclick="openRenameModal('${k}')" title="Rinomina">✏️</button><button class="sc-btn del" onclick="deleteCardFromList('${k}')" title="Elimina">🗑</button></div></div>`;}).join('');}
+function openViewModal(key){currentViewCardKey=key;var d=JSON.parse(localStorage.getItem(key));document.getElementById('view-modal-content').innerHTML=d.resultHtml||'<p>Scheda non disponibile.</p>';document.getElementById('view-modal').classList.add('open');}
+function closeViewModal(){document.getElementById('view-modal').classList.remove('open');currentViewCardKey=null;}
+function deleteCardFromList(key){if(!confirm('Eliminare questa scheda?'))return;localStorage.removeItem(key);renderSavedList();showToast('🗑 Scheda eliminata');}
+function openRenameModal(key){currentRenameKey=key;document.getElementById('rename-input').value=JSON.parse(localStorage.getItem(key)).name||'';document.getElementById('rename-modal').classList.add('open');setTimeout(()=>document.getElementById('rename-input').focus(),300);}
+function closeRenameModal(){document.getElementById('rename-modal').classList.remove('open');currentRenameKey=null;}
+function confirmRename(){var name=document.getElementById('rename-input').value.trim();if(!name){showToast('⚠️ Inserisci un nome');return;}var d=JSON.parse(localStorage.getItem(currentRenameKey));d.name=name;localStorage.setItem(currentRenameKey,JSON.stringify(d));closeRenameModal();renderSavedList();showToast('✅ Scheda rinominata');}
+function copyCardText(){if(!currentViewCardKey)return;var d=JSON.parse(localStorage.getItem(currentViewCardKey)),div=document.createElement('div');div.innerHTML=d.resultHtml||'';navigator.clipboard.writeText(div.innerText||'').then(()=>showToast('✅ Testo copiato!'));}
+function copyResultText(){if(!pendingCardData)return;var div=document.createElement('div');div.innerHTML=pendingCardData.resultHtml||'';navigator.clipboard.writeText(div.innerText||'').then(()=>showToast('✅ Testo copiato!'));}
+function printResultCard(){if(!pendingCardData)return;var pt=document.getElementById('print-target');pt.innerHTML=pendingCardData.resultHtml||'';pt.style.display='block';window.print();pt.style.display='none';pt.innerHTML='';}
+function printSavedCard(){if(!currentViewCardKey)return;var d=JSON.parse(localStorage.getItem(currentViewCardKey)),pt=document.getElementById('print-target');pt.innerHTML=d.resultHtml||'';pt.style.display='block';closeViewModal();setTimeout(()=>{window.print();pt.style.display='none';pt.innerHTML='';},200);}
+
+/* BACKUP */
+function exportBackup(){var b={version:1,exported:new Date().toISOString(),setup:null,cards:[]},raw=localStorage.getItem('pc_setup');if(raw)b.setup=JSON.parse(raw);Object.keys(localStorage).filter(k=>k.startsWith('pc_card_')).forEach(k=>b.cards.push(JSON.parse(localStorage.getItem(k))));var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(b,null,2)],{type:'application/json'}));a.download='podcast-companion-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(a.href);showToast('✅ Backup esportato!');}
+function importBackup(event){var file=event.target.files[0];if(!file)return;var reader=new FileReader();reader.onload=e=>{try{var b=JSON.parse(e.target.result);if(!b.version)throw new Error();if(!confirm('Importare il backup? I dati attuali verranno sovrascritti.'))return;if(b.setup)localStorage.setItem('pc_setup',JSON.stringify(b.setup));if(b.cards)b.cards.forEach(c=>{if(c.key)localStorage.setItem(c.key,JSON.stringify(c));});loadSetup();showToast('✅ Backup importato!');}catch{showToast('\u274c File non valido');}};reader.readAsText(file);event.target.value='';}
+function resetEverything(){if(!confirm('Sei sicuro/a di voler cancellare TUTTO? Setup e tutte le schede salvate verranno eliminati definitivamente.'))return;if(!confirm('Ultima conferma: questa operazione non è reversibile. Procedere?'))return;Object.keys(localStorage).filter(k=>k.startsWith('pc_')).forEach(k=>localStorage.removeItem(k));loadSetup();renderSavedList();showToast('🗑 Reset completato');}
+
+/* MODAL EVENTS */
+document.getElementById('save-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeSaveModal();});
+document.getElementById('view-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeViewModal();});
+document.getElementById('rename-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeRenameModal();});
+document.getElementById('card-name-input').addEventListener('keydown',e=>{if(e.key==='Enter')confirmSaveCard();});
+document.getElementById('rename-input').addEventListener('keydown',e=>{if(e.key==='Enter')confirmRename();});
+
+if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js').catch(()=>{});});}
+
+loadTheme();
+loadSetup();
+</script>
+</body>
+</html>
